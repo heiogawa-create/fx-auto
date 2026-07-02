@@ -48,3 +48,34 @@ def test_signals_do_not_mutate_input(trend_df):
     before = trend_df.copy()
     EmaRsiStrategy().generate_signals(trend_df)
     assert trend_df.equals(before)
+
+
+def test_trend_ema_must_exceed_slow_ema():
+    with pytest.raises(ValueError, match="trend_ema"):
+        EmaRsiStrategy(fast_ema=10, slow_ema=30, trend_ema=30)
+
+
+def test_trend_filter_blocks_counter_trend_entries():
+    # 長い下落の後の小反発: フィルタなしならゴールデンクロスでロングするが、
+    # 価格はトレンドEMAの下にあるため、フィルタありではロングしない
+    prices = np.concatenate([np.linspace(150, 100, 250), np.linspace(100, 108, 50)])
+    df = make_ohlcv(prices)
+    no_filter = EmaRsiStrategy(fast_ema=5, slow_ema=20)
+    with_filter = EmaRsiStrategy(fast_ema=5, slow_ema=20, trend_ema=200)
+    longs_without = (no_filter.generate_signals(df)["signal"] == LONG).sum()
+    longs_with = (with_filter.generate_signals(df)["signal"] == LONG).sum()
+    assert longs_without >= 1
+    assert longs_with == 0
+
+
+def test_trend_filter_allows_with_trend_entries():
+    # 押し目を作りながら上昇し続ける相場: 押し目後の再クロスは
+    # トレンドEMAの上で起きるため、フィルタがあってもロングが出る
+    n = 900
+    base = np.linspace(100, 160, n)
+    pullbacks = -3 * (np.arange(n) % 100 < 20)  # 100本ごとに20本の押し目
+    df = make_ohlcv(base + pullbacks)
+    # RSI条件は無効化(rsi_long_max=100)してトレンドフィルタの挙動だけを見る
+    s = EmaRsiStrategy(fast_ema=10, slow_ema=30, trend_ema=100, rsi_long_max=100.0)
+    out = s.generate_signals(df)
+    assert (out["signal"] == LONG).sum() >= 1

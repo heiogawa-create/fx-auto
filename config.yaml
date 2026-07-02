@@ -18,6 +18,7 @@ strategy:
     rsi_period: 14
     rsi_long_max: 65       # ロングはRSIがこれ未満のときのみ(高値掴み回避)
     rsi_short_min: 35      # ショートはRSIがこれ超のときのみ
+    trend_ema: 200         # 長期トレンドフィルタ(この上でロング/下でショートのみ。無効化は null)
 
 backtest:
   initial_balance: 1_000_000   # 初期残高(口座通貨。JPY想定)

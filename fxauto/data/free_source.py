@@ -50,13 +50,24 @@ def to_yahoo_symbol(instrument: str) -> str:
     return f"{base}{quote}=X"
 
 
+def resample_ohlcv(df: pd.DataFrame, rule: str) -> pd.DataFrame:
+    """OHLCVをより大きな時間足に集約する(例: 1時間足 → 4時間足)。"""
+    out = df.resample(rule).agg(
+        {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+    )
+    return out.dropna(subset=["open", "high", "low", "close"])
+
+
 def fetch_free_candles(
     instrument: str,
     granularity: str,
     start,
     end=None,
 ) -> pd.DataFrame:
-    """Yahoo FinanceからOHLCVを取得し、既存のcandle DataFrame形式に揃えて返す。"""
+    """Yahoo FinanceからOHLCVを取得し、既存のcandle DataFrame形式に揃えて返す。
+
+    H4はYahoo側に存在しないため、1時間足を取得して4時間足に集約する。
+    """
     symbol = to_yahoo_symbol(instrument)
     interval = _GRANULARITY_TO_INTERVAL.get(granularity)
     if interval is None:
@@ -78,4 +89,7 @@ def fetch_free_candles(
 
     out = df[["open", "high", "low", "close"]].copy()
     out["volume"] = df["volume"].fillna(0).astype(int) if "volume" in df else 0
-    return out.dropna(subset=["open", "high", "low", "close"]).sort_index()
+    out = out.dropna(subset=["open", "high", "low", "close"]).sort_index()
+    if granularity == "H4":
+        out = resample_ohlcv(out, "4h")
+    return out

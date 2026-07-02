@@ -29,6 +29,7 @@ PARAM_GRID = {
     "rsi_period": [14],
     "rsi_long_max": [60.0, 70.0],
     "rsi_short_min": [30.0, 40.0],
+    "trend_ema": [None, 200],   # 長期トレンドフィルタの有無もOOSで検証する
 }
 
 
