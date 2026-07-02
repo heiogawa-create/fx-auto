@@ -55,3 +55,41 @@ def test_practice_url_only():
     from fxauto.data import oanda_client
     assert "fxpractice" in oanda_client.PRACTICE_API_URL
     assert "fxtrade" not in oanda_client.PRACTICE_API_URL
+
+
+def test_oanda_and_free_caches_are_separate_files(tmp_path):
+    store = CandleStore(client=None, cache_dir=tmp_path)
+    oanda_df = candles_to_df([_candle("2024-01-01T00:00:00.000000000Z", 150.0)])
+    free_df = candles_to_df([_candle("2024-01-01T00:00:00.000000000Z", 999.0)])
+    store.save_cache(oanda_df, "USD_JPY", "D", source="oanda")
+    store.save_cache(free_df, "USD_JPY", "D", source="yf")
+
+    assert store._cache_path("USD_JPY", "D", source="oanda") != store._cache_path(
+        "USD_JPY", "D", source="yf"
+    )
+    assert store.load_cache("USD_JPY", "D", source="oanda")["open"].iloc[0] == 150.0
+    assert store.load_cache("USD_JPY", "D", source="yf")["open"].iloc[0] == 999.0
+
+
+def test_fetch_free_uses_free_source_and_caches(tmp_path, monkeypatch):
+    import fxauto.data.free_source as free_source
+
+    calls = []
+
+    def fake_fetch(instrument, granularity, start, end):
+        calls.append((instrument, granularity))
+        idx = pd.date_range(start, periods=3, freq="1D", tz="UTC")
+        return pd.DataFrame(
+            {"open": [1.0, 2.0, 3.0], "high": [1.1, 2.1, 3.1], "low": [0.9, 1.9, 2.9],
+             "close": [1.05, 2.05, 3.05], "volume": [0, 0, 0]},
+            index=idx,
+        )
+
+    monkeypatch.setattr(free_source, "fetch_free_candles", fake_fetch)
+    store = CandleStore(client=None, cache_dir=tmp_path)
+    df = store.fetch_free("USD_JPY", "D", start=pd.Timestamp("2024-01-01", tz="UTC"))
+
+    assert len(calls) == 1
+    assert len(df) == 3
+    cached = store.load_cache("USD_JPY", "D", source="yf")
+    assert len(cached) == 3

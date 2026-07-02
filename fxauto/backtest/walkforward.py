@@ -64,6 +64,7 @@ def walk_forward(
     backtester_kwargs: dict,
     n_splits: int = 4,
     train_ratio: float = 0.7,
+    periods_per_year: int = 6240,
 ) -> WalkForwardResult:
     if not 0.0 < train_ratio < 1.0:
         raise ValueError("train_ratio は0と1の間で指定してください")
@@ -88,7 +89,7 @@ def walk_forward(
             except ValueError:
                 continue  # 不正な組合せ(fast >= slow など)はスキップ
             result = Backtester(**backtester_kwargs).run(is_df, strategy)
-            m = compute_metrics(result)
+            m = compute_metrics(result, periods_per_year=periods_per_year)
             if _score(m) > best_score:
                 best_score, best_params, best_metrics = _score(m), params, m
 
@@ -97,7 +98,7 @@ def walk_forward(
             continue
 
         oos_result = Backtester(**backtester_kwargs).run(oos_df, strategy_cls(**best_params))
-        oos_metrics = compute_metrics(oos_result)
+        oos_metrics = compute_metrics(oos_result, periods_per_year=periods_per_year)
         windows.append(
             WalkForwardWindow(
                 fold=fold,

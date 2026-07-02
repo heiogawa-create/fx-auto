@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from fxauto.backtest.metrics import periods_per_year_for
 from fxauto.backtest.walkforward import walk_forward
 from fxauto.config import load_config
 from fxauto.data.store import CandleStore
@@ -37,8 +38,9 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    cache_source = "oanda" if cfg["data"].get("source", "yfinance") == "oanda" else "yf"
     store = CandleStore(client=None, cache_dir=cfg["data"]["cache_dir"])
-    df = store.load_cache(cfg["instrument"], cfg["granularity"])
+    df = store.load_cache(cfg["instrument"], cfg["granularity"], source=cache_source)
     if df is None or df.empty:
         raise SystemExit("キャッシュがありません。先に scripts/fetch_data.py を実行してください")
 
@@ -59,6 +61,7 @@ def main() -> None:
         ),
         n_splits=cfg["walkforward"]["n_splits"],
         train_ratio=cfg["walkforward"]["train_ratio"],
+        periods_per_year=periods_per_year_for(cfg["granularity"]),
     )
     print("\n=== Walk-Forward 結果 ===")
     print(result.summary())

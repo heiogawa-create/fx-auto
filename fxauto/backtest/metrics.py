@@ -16,6 +16,16 @@ SUSPICIOUS_WIN_RATE = 0.80
 SUSPICIOUS_SHARPE = 3.0
 MIN_TRADES_FOR_CONFIDENCE = 30
 
+# シャープレシオの年率換算用: 時間足ごとの年間バー数の概算(平日のみ)
+PERIODS_PER_YEAR = {
+    "M5": 288 * 252, "M15": 96 * 252, "M30": 48 * 252,
+    "H1": 24 * 260, "H4": 6 * 260, "D": 252,
+}
+
+
+def periods_per_year_for(granularity: str) -> int:
+    return PERIODS_PER_YEAR.get(granularity, 252)
+
 
 @dataclass
 class Metrics:

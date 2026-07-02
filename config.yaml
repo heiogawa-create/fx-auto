@@ -2,10 +2,13 @@
 # APIキー等の秘密情報は .env に置く(このファイルには書かない)
 
 instrument: USD_JPY        # 通貨ペア(OANDA形式)
-granularity: H1            # 時間足: M1/M5/M15/M30/H1/H4/D
+granularity: D              # 時間足: M5/M15/M30/H1/H4/D (無料データソースは日足が最も安定)
 
 data:
   cache_dir: data/candles  # parquetキャッシュの置き場所
+  # source: oanda   = OANDA証券API(要:本番口座+25万円入金でAPI解禁)
+  # source: yfinance = Yahoo Financeの無料データ(口座開設・入金不要。バックテスト専用)
+  source: yfinance
 
 strategy:
   name: ema_rsi

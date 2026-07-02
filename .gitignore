@@ -1,9 +1,10 @@
 # 秘密情報
 .env
 
-# データキャッシュ・ログ
-data/
-logs/
+# データキャッシュ・ログ・生成レポート(リポジトリ直下のみ。fxauto/data/等のコードは対象外)
+/data/
+/logs/
+/reports/
 
 # Python
 __pycache__/
