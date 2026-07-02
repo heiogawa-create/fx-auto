@@ -1,0 +1,19 @@
+# 秘密情報
+.env
+
+# データキャッシュ・ログ
+data/
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# エディタ
+.idea/
+.vscode/
+.DS_Store

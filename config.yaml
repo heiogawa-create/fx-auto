@@ -1,0 +1,45 @@
+# FX自動売買システム設定
+# APIキー等の秘密情報は .env に置く(このファイルには書かない)
+
+instrument: USD_JPY        # 通貨ペア(OANDA形式)
+granularity: H1            # 時間足: M1/M5/M15/M30/H1/H4/D
+
+data:
+  cache_dir: data/candles  # parquetキャッシュの置き場所
+
+strategy:
+  name: ema_rsi
+  params:
+    fast_ema: 20           # 短期EMA
+    slow_ema: 50           # 長期EMA
+    rsi_period: 14
+    rsi_long_max: 65       # ロングはRSIがこれ未満のときのみ(高値掴み回避)
+    rsi_short_min: 35      # ショートはRSIがこれ超のときのみ
+
+backtest:
+  initial_balance: 1_000_000   # 初期残高(口座通貨。JPY想定)
+  spread_pips: 1.0             # 往復ではなく片道換算のスプレッド(pips)
+  slippage_pips: 0.2           # 成行時のすべり(pips)
+  atr_period: 14
+  sl_atr_mult: 1.5             # 損切り幅 = ATR × この係数
+  tp_atr_mult: 3.0             # 利確幅 = ATR × この係数
+  risk_per_trade: 0.01         # 1トレードで許容する残高比率
+
+walkforward:
+  n_splits: 4                  # walk-forwardの分割数
+  train_ratio: 0.7             # 各ウィンドウ内のIn-Sample比率
+
+risk:
+  risk_per_trade: 0.01         # 1トレードのリスクは残高の1%まで
+  max_daily_loss: 0.03         # 日次損失が残高の3%に達したらその日は停止
+  max_positions: 1             # 同時ポジション数の上限
+  min_units: 1                 # 最小発注単位
+  max_units: 100000            # 発注単位の上限(安全弁)
+
+execution:
+  poll_interval_sec: 60        # フォワードテストのポーリング間隔
+  log_dir: logs                # 取引ログ(CSV+JSON)の出力先
+
+notify:
+  enabled: true
+  channel: discord             # discord | line | none
