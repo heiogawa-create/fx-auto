@@ -109,3 +109,52 @@ def _overfit_warnings(m: Metrics) -> list[str]:
             f"シャープレシオ {m.sharpe_ratio:.2f} は個人のFX戦略として異常に高い値です"
         )
     return warnings
+
+
+@dataclass
+class CombinedStats:
+    """複数通貨ペアの結果をR倍数(1トレードの許容リスク=1R)で合算した統計。
+
+    損益は通貨ペアごとにクオート通貨建てでバラバラなため、そのまま足さず、
+    各トレードを「許容リスクの何倍勝った/負けたか」に正規化して集計する。
+    """
+    num_trades: int
+    profit_factor: float
+    win_rate: float
+    total_r: float          # 合計R(+3.0Rなら「許容リスク3回分の利益」)
+    avg_r: float
+
+    def summary(self) -> str:
+        return (
+            f"合計取引回数    : {self.num_trades}\n"
+            f"PF(R基準)      : {self.profit_factor:.2f}\n"
+            f"勝率            : {self.win_rate:.1%}\n"
+            f"合計損益        : {self.total_r:+.1f}R(1R = 1トレードの許容リスク)\n"
+            f"平均損益        : {self.avg_r:+.2f}R/トレード"
+        )
+
+
+def combine_trade_stats(results: list[BacktestResult]) -> CombinedStats:
+    """複数のバックテスト結果をR倍数ベースで合算する。"""
+    r_multiples = []
+    for result in results:
+        for t in result.trades:
+            if t.pnl is None:
+                continue
+            risk = (t.entry_price - t.sl_price) * t.direction * t.units
+            if risk <= 0:
+                continue
+            r_multiples.append(t.pnl / risk)
+    if not r_multiples:
+        return CombinedStats(0, 0.0, 0.0, 0.0, 0.0)
+    arr = np.array(r_multiples)
+    gross_profit = float(arr[arr > 0].sum())
+    gross_loss = float(-arr[arr < 0].sum())
+    pf = gross_profit / gross_loss if gross_loss > 0 else (math.inf if gross_profit > 0 else 0.0)
+    return CombinedStats(
+        num_trades=len(arr),
+        profit_factor=pf,
+        win_rate=float((arr > 0).mean()),
+        total_r=float(arr.sum()),
+        avg_r=float(arr.mean()),
+    )

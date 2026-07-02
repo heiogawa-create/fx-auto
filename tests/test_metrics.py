@@ -1,7 +1,7 @@
 import pandas as pd
 
 from fxauto.backtest.engine import BacktestResult, Trade
-from fxauto.backtest.metrics import compute_metrics
+from fxauto.backtest.metrics import combine_trade_stats, compute_metrics
 
 
 def _trade(pnl: float) -> Trade:
@@ -55,3 +55,29 @@ def test_normal_result_has_no_pf_warning():
     pnls = ([12, -10] * 25)  # PF=1.2, 勝率50%, 50取引
     m = compute_metrics(_result(pnls))
     assert not any("PF" in w for w in m.warnings)
+
+
+def _trade_r(pnl: float, entry=100.0, sl=99.0, units=100.0, direction=1) -> Trade:
+    # リスク = (entry - sl) * direction * units = 100 → pnl 100 で 1R
+    t = pd.Timestamp("2024-01-01", tz="UTC")
+    return Trade(entry_time=t, exit_time=t, direction=direction, entry_price=entry,
+                 exit_price=entry, units=units, sl_price=sl, tp_price=102.0, pnl=pnl)
+
+
+def test_combine_trade_stats_r_multiples():
+    r1 = BacktestResult(trades=[_trade_r(200.0), _trade_r(-100.0)],
+                        equity_curve=pd.Series([1.0]), initial_balance=1, final_balance=1)
+    r2 = BacktestResult(trades=[_trade_r(-100.0), _trade_r(200.0)],
+                        equity_curve=pd.Series([1.0]), initial_balance=1, final_balance=1)
+    combined = combine_trade_stats([r1, r2])
+    assert combined.num_trades == 4
+    assert abs(combined.profit_factor - 2.0) < 1e-9  # +2R+2R vs -1R-1R
+    assert combined.win_rate == 0.5
+    assert abs(combined.total_r - 2.0) < 1e-9
+    assert abs(combined.avg_r - 0.5) < 1e-9
+
+
+def test_combine_trade_stats_empty():
+    combined = combine_trade_stats([])
+    assert combined.num_trades == 0
+    assert combined.total_r == 0.0
